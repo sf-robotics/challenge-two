@@ -78,15 +78,15 @@ model.fit(X_train, Y_train,
           validation_data=(X_test, Y_test),
           shuffle=True)
 
-def generate_arrays_from_file(path):
-    while 1:
-        f = open(path)
-        for line in f:
-            x, y = process_line(line)
-            img = load_images(x)
-            yield (img, y)
-        f.close()
+# def generate_arrays_from_file(path):
+#     while 1:
+#         f = open(path)
+#         for line in f:
+#             x, y = process_line(line)
+#             img = load_images(x)
+#             yield (img, y)
+#         f.close()
 
-model.fit_generator(generate_arrays_from_file('/my_file.txt'),
-        samples_per_epoch=10000, nb_epoch=1)
+# model.fit_generator(generate_arrays_from_file('/my_file.txt'),
+#         samples_per_epoch=10000, nb_epoch=1)
 
