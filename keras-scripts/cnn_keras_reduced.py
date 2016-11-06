@@ -77,4 +77,3 @@ model.fit(X_train, Y_train,
           nb_epoch=nb_epoch,
           validation_data=(X_test, Y_test),
           shuffle=True)
-
