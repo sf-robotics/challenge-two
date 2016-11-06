@@ -15,8 +15,6 @@ from keras.utils import np_utils
 # load images from jpg
 files_dir = "/Users/leisure/ai/datasets/output/dataset/center/"
 files_list = glob.glob(files_dir+'*.jpg')
-X_train = np.asarray([cv2.imread(i) for i in files_list[-1000:]])
-X_test = np.asarray([cv2.imread(i) for i in files_list[-1500:-1000]])
 
 # load labels and select based on timestamps
 steering=pd.read_csv('/Users/leisure/ai/datasets/output/dataset/steering.csv')
@@ -32,11 +30,8 @@ for j in range(len(steering)):
         else:
             i+=1
 
-Y_train=np.asarray(y_full)[-1000:]
-Y_test=np.asarray(y_full)[-1500:-1000]
-
 # define simple model
-batch_size = 32
+batch_size = 50
 nb_classes = 1
 nb_epoch = 1
 img_rows, img_cols = 480, 640
@@ -66,15 +61,32 @@ sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='mean_squared_error', 
               optimizer=adam)
 
-# images normalization
-X_train = X_train.astype('float32')
-X_test = X_test.astype('float32')
-X_train /= 255
-X_test /= 255
+def trainig_generator(files_list,batch_size,cnt=0):
+    while 1:
+      Y_train = np.asarray(y_full)[(batch_size*cnt):batch_size*(cnt+1)]
+      X_train = np.asarray([cv2.imread(i) for i in files_list[(batch_size*cnt):batch_size*(cnt+1)]])
+      X_train = X_train.astype('float32')
+      X_train /= 255
+      yield (X_train, Y_train)
+      cnt += 2
 
-model.fit(X_train, Y_train,
-          batch_size=batch_size,
-          nb_epoch=nb_epoch,
-          validation_data=(X_test, Y_test),
-          shuffle=True)
+# def test_generator(files_list,batch_size):
+#     cnt = 1
+#     while 1:
+#       Y_test = np.asarray(y_full)[(batch_size*cnt):batch_size*(cnt+1)]
+#       X_test = np.asarray([cv2.imread(j) for j in files_list[(batch_size*cnt):batch_size*(cnt+1)]])
+#       X_test = X_test.astype('float32')
+#       X_test /= 255
+#       yield (X_test, Y_test)
+#       cnt += 2
 
+model.fit_generator(trainig_generator(files_list=files_list,batch_size=batch_size),
+                    samples_per_epoch=100, 
+                    nb_epoch=nb_epoch,
+                    # remove rows below and uncomment eval and test_generator for 2nd approach
+                    validation_data=trainig_generator(files_list=files_list,batch_size=batch_size,cnt=1),
+                    nb_val_samples=100)
+
+# eval = model.evaluate_generator(test_generator(files_list=files_list,batch_size=batch_size),
+#                          val_samples=400)
+# print('mse on test set: {}'.format(eval))
