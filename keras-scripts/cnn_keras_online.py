@@ -12,14 +12,27 @@ from keras.layers import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD, Adam
 from keras.utils import np_utils
 
+def trainig_generator(y_full, files_list, batch_size, cnt=0):
+  """
+  Define train generator.
+  :param y_full: full vector of y labels/ observations
+  :param files_list: full list of filenames for images
+  """
+    while 1:
+      Y_train = np.asarray(y_full)[(batch_size*cnt):batch_size*(cnt+1)]
+      X_train = np.asarray([cv2.imread(i) for i in files_list[(batch_size*cnt):batch_size*(cnt+1)]])
+      X_train = X_train.astype('float32')
+      X_train /= 255
+      yield (X_train, Y_train)
+      cnt += 2
 
-files_dir = "/Users/leisure/ai/self-driving-car/datasets/output/dataset/center/"
-files_list = glob.glob(files_dir+'*.jpg')
-X_train = [cv2.imread(i) for i in files_list[:10000]]
-X_test = [cv2.imread(i) for i in files_list[10000:]]
+# load images filenames
+files_dir = "/Users/leisure/ai/datasets/output/dataset"
+files_list = glob.glob(files_dir + '/center/*.jpg')
 
-steering=pd.read_csv('/Users/leisure/ai/self-driving-car/datasets/output/dataset/steering.csv')
-camera=pd.read_csv('/Users/leisure/ai/self-driving-car/datasets/output/dataset/camera.csv')
+# load labels and select based on timestamps
+steering=pd.read_csv(files_dir + '/steering.csv')
+camera=pd.read_csv(files_dir + '/camera.csv')
 ts_camera = camera[camera['frame_id']=='center_camera'].timestamp.values
 i = 0
 y_full = []
@@ -30,9 +43,6 @@ for j in range(len(steering)):
             break
         else:
             i+=1
-y=np.asarray(y_full)
-Y_train=y[:10000]
-Y_test=y[10000:]
 
 # simple model
 batch_size = 32
@@ -69,18 +79,20 @@ model.add(Dropout(0.5))
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 
+adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+
 model.compile(loss='categorical_crossentropy', 
               optimizer=sgd, 
               metrics=['accuracy'])
 
-X_train = X_train.astype('float32')
-X_test = X_test.astype('float32')
-X_train /= 255
-X_test /= 255
-
-model.fit(X_train, Y_train,
-          batch_size=batch_size,
-          nb_epoch=nb_epoch,
-          validation_data=(X_test, Y_test),
-          shuffle=True)
+model.fit_generator(trainig_generator(y_full=y_full, 
+                                      files_list=files_list,
+                                      batch_size=batch_size),
+                    samples_per_epoch=7000, 
+                    nb_epoch=nb_epoch,
+                    validation_data=trainig_generator(y_full=y_full, 
+                                                      files_list=files_list, 
+                                                      batch_size=batch_size, 
+                                                      cnt=1),
+                    nb_val_samples=7000)
