@@ -82,9 +82,8 @@ model.add(Activation('softmax'))
 adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 
-model.compile(loss='categorical_crossentropy', 
-              optimizer=sgd, 
-              metrics=['accuracy'])
+model.compile(loss='mean_squared_error', 
+              optimizer=adam)
 
 model.fit_generator(trainig_generator(y_full=y_full, 
                                       files_list=files_list,
