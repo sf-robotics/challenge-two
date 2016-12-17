@@ -1,4 +1,6 @@
 from __future__ import print_function
+
+import scipy.misc
 import tensorflow as tf
 
 import cv2
@@ -12,13 +14,13 @@ from keras.layers import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD, Adam
 from keras.utils import np_utils
 
-def trainig_generator(y_full, files_list, batch_size, cnt=0):
+def training_generator(y_full, files_list, batch_size, cnt=0):
   """
   Define train generator.
   :param y_full: full vector of y labels/ observations
   :param files_list: full list of filenames for images
   """
-    while 1:
+  while 1:
       Y_train = np.asarray(y_full)[(batch_size*cnt):batch_size*(cnt+1)]
       X_train = np.asarray([cv2.imread(i) for i in files_list[(batch_size*cnt):batch_size*(cnt+1)]])
       X_train = X_train.astype('float32')
@@ -26,8 +28,23 @@ def trainig_generator(y_full, files_list, batch_size, cnt=0):
       yield (X_train, Y_train)
       cnt += 2
 
+def training_generator_v2(y_full, files_list, batch_size, cnt=0):
+  """
+  Define train generator.
+  :param y_full: full vector of y labels/ observations
+  :param files_list: full list of filenames for images
+  """
+  while 1:
+      Y_train = np.asarray(y_full)[(batch_size*cnt):batch_size*(cnt+1)]
+      print(cnt)
+      X_train = np.asarray([cv2.imread(i) for i in files_list[(batch_size*cnt):batch_size*(cnt+1)]])
+      X_train = X_train.astype('float32')
+      X_train /= 255
+      yield (X_train, Y_train)
+      cnt += 1
+
 # load images filenames
-files_dir = "/Users/leisure/ai/datasets/output/dataset"
+files_dir = "/data/extracted"
 files_list = glob.glob(files_dir + '/center/*.jpg')
 files_list = files_list[-5212:]
 
@@ -47,10 +64,9 @@ for j in range(len(steering)):
 y_full = y_full[-5212:]
 
 # simple model
-batch_size = 32
+batch_size = 50
 nb_classes = 1
-nb_epoch = 10
-# data_augmentation = True
+nb_epoch = 1
 img_rows, img_cols = 480, 640
 img_channels = 3
 
@@ -71,29 +87,35 @@ model.add(Activation('relu'))
 model.add(Convolution2D(64, 3, 3, border_mode='same'))
 model.add(Activation('relu'))
 model.add(Flatten())
+model.add(Dense(500))
+model.add(Activation('relu'))
 model.add(Dense(100))
 model.add(Activation('relu'))
-model.add(Dense(50))
-model.add(Activation('relu'))
-model.add(Dense(10))
-model.add(Activation('relu'))
-model.add(Dropout(0.5))
+# model.add(Dropout(0.5))
 model.add(Dense(nb_classes))
-model.add(Activation('softmax'))
 
 adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 
-model.compile(loss='mean_squared_error', 
+model.compile(loss='mean_squared_error',
               optimizer=adam)
 
-model.fit_generator(trainig_generator(y_full=y_full, 
+model.fit_generator(training_generator(y_full=y_full,
                                       files_list=files_list,
                                       batch_size=batch_size),
-                    samples_per_epoch=2500, 
+                    samples_per_epoch=2500,
                     nb_epoch=nb_epoch,
-                    validation_data=trainig_generator(y_full=y_full, 
-                                                      files_list=files_list, 
-                                                      batch_size=batch_size, 
+                    validation_data=training_generator(y_full=y_full,
+                                                      files_list=files_list,
+                                                      batch_size=batch_size,
                                                       cnt=1),
                     nb_val_samples=2500)
+
+
+np.savetxt('y', y_full[:2500], delimiter=',')
+
+yhat = model.predict_generator(training_generator_v2(y_full=y_full,
+                                      files_list=files_list,
+                                      batch_size=batch_size), val_samples=2500)
+
+np.savetxt('yhat', yhat, delimiter=',')
