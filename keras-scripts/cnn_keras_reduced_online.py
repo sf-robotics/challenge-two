@@ -36,9 +36,9 @@ def trainig_generator(y, files, batch_size, val_flag=0):
               len(Y_train))
       yield (X_train, Y_train)
 
-c = 120 # select last <c> frames to from dataset
+c = 5000 # select last <c> frames to from dataset
 # load images filenames
-files_dir = "/Users/leisure/ai/datasets/output/dataset"
+files_dir = "/data/extracted"
 files_list = glob.glob(files_dir + '/center/*.jpg')
 files_list = files_list[-c:]
 
@@ -66,9 +66,9 @@ list_te = [files_list[i:i+5] for i in range(5,c,10)]
 files_list_te = [item for sublist in list_te for item in sublist]
 
 # define simple model
-batch_size = 5
+batch_size = 50
 nb_classes = 1
-nb_epoch = 4
+nb_epoch = 100
 img_rows, img_cols = 480, 640
 img_channels = 3
 
