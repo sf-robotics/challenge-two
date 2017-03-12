@@ -1,5 +1,6 @@
 import os
 import cv2
+import shutil
 from math import cos, sin, pi
 
 import subprocess
@@ -12,13 +13,19 @@ FNULL = open(os.devnull, 'w')
 def generate_video(angles,
                    images_path,
                    video_path,
-                   temp_dir):
-
+                   parent_temp_dir):
     assert video_path.endswith('.mp4'), 'h264 pls'
     safe_makedirs(os.path.dirname(video_path))
 
+    temp_dir = os.path.join(parent_temp_dir, 'temp')
+    if os.path.exists(temp_dir):
+        shutil.rmtree(temp_dir)
+    safe_makedirs(temp_dir)
+
     filename_angles = []
     for filename,angle in zip(list(sorted(os.listdir(images_path))), angles):
+        if filename.endswith('.jpg'):
+            filename = filename[:-4]
         filename_angles.append((filename, angle))
 
     progress_bar = IncrementalBar(
@@ -34,6 +41,7 @@ def generate_video(angles,
 
     print '\nGenerating mpg video'
     _, mpg_path = tempfile.mkstemp()
+    print mpg_path
     subprocess.check_call([
         'mencoder',
         'mf://%s/*.png' % temp_dir,
@@ -47,6 +55,9 @@ def generate_video(angles,
         '-oac', 'copy',
         '-of', 'mpeg'
     ], stdout=FNULL, stderr=subprocess.STDOUT)
+
+    if os.path.exists(video_path):
+        os.remove(video_path)
 
     print 'Converting mpg video to mp4'
     try:
@@ -95,8 +106,9 @@ def safe_makedirs(path):
     except: pass
 
 if __name__=='__main__':
-    angles = [0.2] * 1000
+    angles = [((x - 500.0) / 500) for x in range(1000)]
     images_path = '/data/extracted-jan27/center'
-    video_path = '/data/extracted-jan27/movie.mp4'
+    video_path = '/data/extracted-jan27/movies/center.mp4'
     temp_dir = '/data/extracted-jan27/center_temp_dir'
     generate_video(angles, images_path, video_path, temp_dir)
+
