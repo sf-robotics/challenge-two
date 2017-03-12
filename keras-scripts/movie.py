@@ -12,49 +12,51 @@ FNULL = open(os.devnull, 'w')
 
 def generate_video(angles,
                    images_path,
-                   video_path,
-                   parent_temp_dir):
+                   video_path):
+    """
+    Let N be length of `angles` (array of floats).
+    Assumes first N images in images_path correspond to each angle.
+    Creates or overwrites a video at video_path by joining N images.
+    """
     assert video_path.endswith('.mp4'), 'h264 pls'
     safe_makedirs(os.path.dirname(video_path))
 
-    temp_dir = os.path.join(parent_temp_dir, 'temp')
-    if os.path.exists(temp_dir):
-        shutil.rmtree(temp_dir)
-    safe_makedirs(temp_dir)
+    temp_dir = tempfile.mkdtemp()
+    try:
+        filename_angles = []
+        for f,angle in zip(list(sorted(os.listdir(images_path))), angles):
+            if f.endswith('.jpg'):
+                f= f[:-4]
+            filename_angles.append((f, angle))
 
-    filename_angles = []
-    for filename,angle in zip(list(sorted(os.listdir(images_path))), angles):
-        if filename.endswith('.jpg'):
-            filename = filename[:-4]
-        filename_angles.append((filename, angle))
-
-    progress_bar = IncrementalBar(
-        'Generating overlay',
-        max=len(filename_angles),
+        progress_bar = IncrementalBar(
+            'Generating overlay',
+            max=len(filename_angles),
         suffix='%(percent).1f%% - %(eta)ds')
 
-    for filename, angle in filename_angles:
-        img_path = os.path.join(images_path, filename + '.jpg')
-        cv_image = overlay_angle(img_path, float(angle))
-        cv2.imwrite(os.path.join(temp_dir, filename + '.png'), cv_image)
-        progress_bar.next()
+        for filename, angle in filename_angles:
+            img_path = os.path.join(images_path, filename + '.jpg')
+            cv_image = overlay_angle(img_path, float(angle))
+            cv2.imwrite(os.path.join(temp_dir, filename + '.png'), cv_image)
+            progress_bar.next()
 
-    print '\nGenerating mpg video'
-    _, mpg_path = tempfile.mkstemp()
-    print mpg_path
-    subprocess.check_call([
-        'mencoder',
-        'mf://%s/*.png' % temp_dir,
-        '-mf',
-        'type=png:fps=20',
-        '-o', mpg_path,
-        '-speed', '1',
-        '-ofps', '20',
-        '-ovc', 'lavc',
-        '-lavcopts', 'vcodec=mpeg2video:vbitrate=2500',
-        '-oac', 'copy',
-        '-of', 'mpeg'
-    ], stdout=FNULL, stderr=subprocess.STDOUT)
+        print '\nGenerating mpg video'
+        _, mpg_path = tempfile.mkstemp()
+        subprocess.check_call([
+            'mencoder',
+            'mf://%s/*.png' % temp_dir,
+            '-mf',
+            'type=png:fps=20',
+            '-o', mpg_path,
+            '-speed', '1',
+            '-ofps', '20',
+            '-ovc', 'lavc',
+            '-lavcopts', 'vcodec=mpeg2video:vbitrate=2500',
+            '-oac', 'copy',
+            '-of', 'mpeg'
+        ], stdout=FNULL, stderr=subprocess.STDOUT)
+    finally:
+        shutil.rmtree(temp_dir)
 
     if os.path.exists(video_path):
         os.remove(video_path)
@@ -109,6 +111,5 @@ if __name__=='__main__':
     angles = [((x - 500.0) / 500) for x in range(1000)]
     images_path = '/data/extracted-jan27/center'
     video_path = '/data/extracted-jan27/movies/center.mp4'
-    temp_dir = '/data/extracted-jan27/center_temp_dir'
-    generate_video(angles, images_path, video_path, temp_dir)
+    generate_video(angles, images_path, video_path)
 
