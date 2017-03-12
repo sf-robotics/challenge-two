@@ -12,12 +12,15 @@ FNULL = open(os.devnull, 'w')
 
 def generate_video(angles,
                    images_path,
-                   video_path):
+                   video_path,
+                   true_angles=None):
     """
     Let N be length of `angles` (array of floats).
     Assumes first N images in images_path correspond to each angle.
     Creates or overwrites a video at video_path by joining N images.
     """
+    if true_angles is not None:
+        assert len(angles) == len(true_angles), "True angles length should match angles"
     assert video_path.endswith('.mp4'), 'h264 pls'
     safe_makedirs(os.path.dirname(video_path))
 
@@ -34,10 +37,17 @@ def generate_video(angles,
             max=len(filename_angles),
         suffix='%(percent).1f%% - %(eta)ds')
 
-        for filename, angle in filename_angles:
+        for i, (filename, angle) in enumerate(filename_angles):
             img_path = os.path.join(images_path, filename + '.jpg')
-            cv_image = overlay_angle(img_path, float(angle))
-            cv2.imwrite(os.path.join(temp_dir, filename + '.png'), cv_image)
+            png_path = filename + '.png'
+
+            cv_image = cv2.imread(img_path)
+
+            if true_angles is not None:
+                cv_image = overlay_angle(cv_image, float(true_angles[i]), (0, 255, 0))
+
+            cv_image = overlay_angle(cv_image, float(angle))
+            cv2.imwrite(os.path.join(temp_dir, png_path), cv_image)
             progress_bar.next()
 
         print '\nGenerating mpg video'
@@ -86,20 +96,20 @@ def point_on_circle(center, radius, angle):
 def get_degrees(radians):
     return (radians * 180.0) / 3.14
 
-def overlay_angle(img_path, angle):
+def overlay_angle(cv_image, angle, color=(255, 0, 0), text=True):
     center=(320, 400)
     radius=50
-    cv_image = cv2.imread(img_path)
     cv2.circle(cv_image, center, radius, (255, 255, 255), thickness=4, lineType=8)
     x, y = point_on_circle(center, radius, -angle)
-    cv2.circle(cv_image, (x,y), 6, (255, 0, 0), thickness=6, lineType=8)
-    cv2.putText(
-        cv_image,
-        'angle: %.5f' % get_degrees(angle),
-        (50, 450),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
-        (255, 255, 255))
+    cv2.circle(cv_image, (x,y), 6, color, thickness=6, lineType=8)
+    if text:
+        cv2.putText(
+            cv_image,
+            'angle: %.5f' % get_degrees(angle),
+            (50, 450),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (255, 255, 255))
 
     return cv_image
 
@@ -111,5 +121,5 @@ if __name__=='__main__':
     angles = [((x - 500.0) / 500) for x in range(1000)]
     images_path = '/data/extracted-jan27/center'
     video_path = '/data/extracted-jan27/movies/center.mp4'
-    generate_video(angles, images_path, video_path)
+    generate_video(angles, images_path, video_path, [0.2] * 1000)
 
